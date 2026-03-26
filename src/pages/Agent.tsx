@@ -1,11 +1,12 @@
 import { Layout } from "@/components/layout/Layout";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Bot, User, ShoppingCart, Star, Info } from "lucide-react";
+import { Send, Bot, User, ShoppingCart } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { hackathonProducts, scoreProduct, getRecommendedCart, Product } from "@/data/mock-products";
 import { useToast } from "@/hooks/use-toast";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
@@ -13,20 +14,14 @@ interface Message {
   products?: Product[];
 }
 
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+
 const initialMessages: Message[] = [
   {
     role: "assistant",
-    content: "👋 Welcome to SWIFT AI Agent! I'm here to help you shop smarter.\n\nTell me what you need — for example:\n**\"I'm hosting a hackathon for 60 people — figure out what I need (snacks, badges, adapters, decorations, prizes) and buy it at the best price.\"**\n\nI'll find products across multiple retailers, rank them transparently, and build your cart!",
+    content: "👋 Welcome to SWIFT AI Agent! I'm here to help you shop smarter.\n\nTell me what you need — for example:\n\n**\"I'm hosting a hackathon for 60 people — figure out what I need (snacks, badges, adapters, decorations, prizes) and buy it at the best price.\"**\n\nI'll find products across multiple retailers, rank them transparently, and build your cart!",
   },
 ];
-
-function parseShoppingIntent(input: string) {
-  const lower = input.toLowerCase();
-  const budget = lower.match(/budget\s*\$?(\d+)/)?.[1] || lower.match(/\$(\d+)/)?.[1] || "500";
-  const days = lower.match(/(\d+)\s*day/)?.[1] || "5";
-  const isHackathon = lower.includes("hackathon") || lower.includes("event") || lower.includes("hosting") || lower.includes("party");
-  return { budget: parseInt(budget), days: parseInt(days), isHackathon };
-}
 
 export default function Agent() {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
@@ -40,47 +35,126 @@ export default function Agent() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = () => {
+  const streamChat = useCallback(async (allMessages: Message[]) => {
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+      },
+      body: JSON.stringify({
+        messages: allMessages.map((m) => ({ role: m.role, content: m.content })),
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({ error: "AI request failed" }));
+      throw new Error(err.error || `Request failed (${resp.status})`);
+    }
+
+    if (!resp.body) throw new Error("No response body");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = "";
+    let assistantSoFar = "";
+    let streamDone = false;
+
+    while (!streamDone) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      textBuffer += decoder.decode(value, { stream: true });
+
+      let newlineIndex: number;
+      while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+        let line = textBuffer.slice(0, newlineIndex);
+        textBuffer = textBuffer.slice(newlineIndex + 1);
+
+        if (line.endsWith("\r")) line = line.slice(0, -1);
+        if (line.startsWith(":") || line.trim() === "") continue;
+        if (!line.startsWith("data: ")) continue;
+
+        const jsonStr = line.slice(6).trim();
+        if (jsonStr === "[DONE]") {
+          streamDone = true;
+          break;
+        }
+
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            assistantSoFar += content;
+            const snapshot = assistantSoFar;
+            setMessages((prev) => {
+              const last = prev[prev.length - 1];
+              if (last?.role === "assistant" && last !== initialMessages[0]) {
+                return prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: snapshot } : m));
+              }
+              return [...prev, { role: "assistant", content: snapshot }];
+            });
+          }
+        } catch {
+          textBuffer = line + "\n" + textBuffer;
+          break;
+        }
+      }
+    }
+
+    // flush remaining
+    if (textBuffer.trim()) {
+      for (let raw of textBuffer.split("\n")) {
+        if (!raw) continue;
+        if (raw.endsWith("\r")) raw = raw.slice(0, -1);
+        if (raw.startsWith(":") || raw.trim() === "") continue;
+        if (!raw.startsWith("data: ")) continue;
+        const jsonStr = raw.slice(6).trim();
+        if (jsonStr === "[DONE]") continue;
+        try {
+          const parsed = JSON.parse(jsonStr);
+          const content = parsed.choices?.[0]?.delta?.content as string | undefined;
+          if (content) {
+            assistantSoFar += content;
+            const snapshot = assistantSoFar;
+            setMessages((prev) =>
+              prev.map((m, i) => (i === prev.length - 1 ? { ...m, content: snapshot } : m))
+            );
+          }
+        } catch { /* ignore */ }
+      }
+    }
+
+    // After AI response, check if we should attach product cards
+    const lower = assistantSoFar.toLowerCase();
+    if (lower.includes("snack") || lower.includes("badge") || lower.includes("prize") || lower.includes("recommend")) {
+      const budget = 400;
+      const days = 5;
+      const recommended = getRecommendedCart(budget, days);
+      setMessages((prev) =>
+        prev.map((m, i) => (i === prev.length - 1 ? { ...m, products: recommended } : m))
+      );
+    }
+  }, []);
+
+  const handleSend = async () => {
     if (!input.trim()) return;
     const userMsg = input.trim();
     setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMsg }]);
+    const newMessages: Message[] = [...messages, { role: "user", content: userMsg }];
+    setMessages(newMessages);
     setIsThinking(true);
 
-    setTimeout(() => {
-      const { budget, days, isHackathon } = parseShoppingIntent(userMsg);
-
-      if (isHackathon || userMsg.toLowerCase().includes("snack") || userMsg.toLowerCase().includes("need") || userMsg.toLowerCase().includes("buy") || userMsg.toLowerCase().includes("shop")) {
-        const recommended = getRecommendedCart(budget, days);
-        const totalCost = recommended.reduce((s, p) => s + p.price, 0);
-
-        const response = `## 🛒 Shopping Spec Generated!\n\n**Budget:** $${budget} | **Deadline:** ${days} days | **Scenario:** Hackathon Host Kit (60 people)\n\n### Recommended Products (${recommended.length} items from ${[...new Set(recommended.map(p => p.retailer))].length} retailers)\n\nI've ranked products using our **transparent scoring engine** based on:\n- 💰 **Cost efficiency** (30%)\n- 🚚 **Delivery feasibility** (30%)\n- 🎯 **Preference match** (20%)\n- 🧩 **Set coherence** (20%)\n\nTotal: **$${totalCost.toFixed(2)}** ${totalCost <= budget ? "✅ Within budget!" : "⚠️ Slightly over budget"}\n\nClick "Add All to Cart" below, or tap individual items. You can swap any item and I'll adapt!`;
-
-        setMessages((prev) => [...prev, { role: "assistant", content: response, products: recommended }]);
-      } else if (userMsg.toLowerCase().includes("why") || userMsg.toLowerCase().includes("rank")) {
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: "## 📊 Ranking Explanation\n\nEach product is scored on 4 dimensions:\n\n1. **Cost (30%)** — Lower price relative to budget = higher score\n2. **Delivery (30%)** — Meets your deadline? Full score. Each day over = -30 points\n3. **Preference Match (20%)** — How well it fits your stated preferences\n4. **Set Coherence (20%)** — How well it fits with other items in your cart\n\nThe #1 ranked item in each category has the highest combined score. You can click the ℹ️ icon on any product to see its exact breakdown!"
-        }]);
-      } else if (userMsg.toLowerCase().includes("cheaper") || userMsg.toLowerCase().includes("optim")) {
-        const optimized = hackathonProducts
-          .map((p) => scoreProduct(p, 300, days))
-          .sort((a, b) => a.price - b.price)
-          .slice(0, 6);
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: "## 💡 Budget Optimizer\n\nHere's the cheapest setup that still covers all categories:\n\nTotal: **$" + optimized.reduce((s, p) => s + p.price, 0).toFixed(2) + "**\n\nThese are the most cost-effective options from each category.",
-          products: optimized,
-        }]);
-      } else {
-        setMessages((prev) => [...prev, {
-          role: "assistant",
-          content: "I'd love to help! Try telling me:\n- What you're planning (hackathon, party, event)\n- Your budget\n- Delivery deadline\n\nFor example: *\"I'm hosting a hackathon for 60 people, budget $400, need everything in 3 days\"*"
-        }]);
-      }
-
+    try {
+      await streamChat(newMessages);
+    } catch (e: any) {
+      toast({ title: "Error", description: e.message, variant: "destructive" });
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "Sorry, I encountered an error. Please try again." },
+      ]);
+    } finally {
       setIsThinking(false);
-    }, 1500);
+    }
   };
 
   const addAllToCart = (products: Product[]) => {
@@ -101,14 +175,8 @@ export default function Agent() {
                   </div>
                 )}
                 <div className={`max-w-[85%] rounded-xl p-4 ${msg.role === "user" ? "bg-primary text-primary-foreground" : "border bg-card"}`}>
-                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                    {msg.content.split("\n").map((line, li) => {
-                      if (line.startsWith("## ")) return <h2 key={li} className="mt-2 font-display text-lg font-bold">{line.replace("## ", "")}</h2>;
-                      if (line.startsWith("### ")) return <h3 key={li} className="mt-2 font-display text-base font-semibold">{line.replace("### ", "")}</h3>;
-                      if (line.startsWith("**") && line.endsWith("**")) return <p key={li} className="font-semibold">{line.replace(/\*\*/g, "")}</p>;
-                      if (line.startsWith("- ")) return <p key={li} className="ml-2">• {line.slice(2).replace(/\*\*/g, "")}</p>;
-                      return <p key={li}>{line.replace(/\*\*/g, "").replace(/\*/g, "")}</p>;
-                    })}
+                  <div className="prose prose-sm max-w-none text-sm leading-relaxed dark:prose-invert">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
                   </div>
 
                   {msg.products && msg.products.length > 0 && (
@@ -129,7 +197,7 @@ export default function Agent() {
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="font-display font-bold text-primary">${p.price.toFixed(2)}</p>
+                            <p className="font-bold text-primary">${p.price.toFixed(2)}</p>
                             <Button size="sm" variant="outline" className="mt-1 h-7 text-xs" onClick={() => { addItem(p); toast({ title: `Added ${p.name}` }); }}>
                               <ShoppingCart className="mr-1 h-3 w-3" /> Add
                             </Button>
