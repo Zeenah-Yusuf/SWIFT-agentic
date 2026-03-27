@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Bot, User, ShoppingCart, Sparkles } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
-import { hackathonProducts, getRecommendedCart, Product } from "@/data/mock-products";
+import { hackathonProducts, getRecommendedCart, Product, formatNaira } from "@/data/mock-products";
 import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import { motion, AnimatePresence } from "framer-motion";
