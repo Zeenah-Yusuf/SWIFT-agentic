@@ -208,7 +208,7 @@ export default function Agent() {
                       <div className="mt-4 space-y-2">
                         {msg.products.map((p) => (
                           <div key={p.id} className="flex items-center gap-3 rounded-xl border bg-background p-3 transition-colors hover:border-primary/30">
-                            <span className="text-2xl">{p.image}</span>
+                            <img src={p.image} alt={p.name} className="h-12 w-12 rounded-lg object-cover shrink-0" />
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold text-foreground truncate">{p.name}</p>
                               <p className="text-xs text-muted-foreground">{p.retailer} • {p.deliveryDays}d • Score: {p.score}/100</p>

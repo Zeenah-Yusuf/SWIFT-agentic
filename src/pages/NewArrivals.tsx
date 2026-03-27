@@ -18,7 +18,7 @@ export default function NewArrivals() {
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {arrivals.map((p) => (
               <div key={p.id} className="rounded-xl border bg-card p-5 transition-shadow hover:shadow-md">
-                <div className="flex h-16 items-center justify-center text-4xl">{p.image}</div>
+                <img src={p.image} alt={p.name} className="h-32 w-full rounded-lg object-cover" />
                 <h3 className="mt-3 font-display text-sm font-semibold text-foreground line-clamp-2">{p.name}</h3>
                 <p className="text-xs text-muted-foreground">{p.retailer}</p>
                 <div className="mt-2 flex items-center justify-between">

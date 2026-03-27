@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Zap } from "lucide-react";
+import swiftLogo from "@/assets/swift-logo.png";
 
 const footerSections = [
   {
@@ -43,10 +43,8 @@ export function Footer() {
       <div className="container py-14">
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
           <div className="sm:col-span-2 lg:col-span-1">
-            <Link to="/" className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent">
-                <Zap className="h-4 w-4 text-primary-foreground" />
-              </div>
+            <Link to="/" className="flex items-center gap-2">
+              <img src={swiftLogo} alt="SWIFT" className="h-9 w-9 object-contain" />
               <span className="font-display text-lg font-bold text-foreground">SWIFT</span>
             </Link>
             <p className="mt-4 text-sm leading-relaxed text-muted-foreground">

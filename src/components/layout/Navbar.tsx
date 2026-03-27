@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { ShoppingCart, Menu, User, Zap, LogOut } from "lucide-react";
+import { ShoppingCart, Menu, User, LogOut } from "lucide-react";
+import swiftLogo from "@/assets/swift-logo.png";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,10 +26,8 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-xl">
       <div className="container flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent">
-            <Zap className="h-5 w-5 text-primary-foreground" />
-          </div>
+        <Link to="/" className="flex items-center gap-2">
+          <img src={swiftLogo} alt="SWIFT" className="h-10 w-10 object-contain" />
           <span className="font-display text-xl font-bold tracking-tight text-foreground">SWIFT</span>
         </Link>
 

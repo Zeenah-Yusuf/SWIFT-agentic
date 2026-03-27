@@ -92,8 +92,9 @@ export default function Checkout() {
                 <div className="space-y-3">
                   {items.map((item) => (
                     <div key={item.id} className="flex items-center justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {item.image} {item.name} ×{item.quantity}
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <img src={item.image} alt={item.name} className="h-8 w-8 rounded object-cover" />
+                        {item.name} ×{item.quantity}
                       </span>
                       <span className="font-medium text-foreground">
                         ${(item.price * item.quantity).toFixed(2)}

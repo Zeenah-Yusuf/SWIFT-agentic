@@ -36,7 +36,7 @@ export default function Cart() {
           <div className="mt-8 space-y-4">
             {items.map((item) => (
               <div key={item.id} className="flex items-center gap-4 rounded-xl border bg-card p-4">
-                <span className="text-3xl">{item.image}</span>
+                <img src={item.image} alt={item.name} className="h-16 w-16 rounded-lg object-cover shrink-0" />
                 <div className="flex-1">
                   <h3 className="font-display text-sm font-semibold text-foreground">{item.name}</h3>
                   <p className="text-xs text-muted-foreground">{item.retailer} • {item.deliveryDays}d delivery</p>

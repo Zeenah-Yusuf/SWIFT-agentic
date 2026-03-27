@@ -180,4 +180,15 @@ export default function Login() {
                   </button>
                 )}
                 {mode !== "whatsapp" && (
-                  <button onClick={() => setMode("whatsapp")} className="text-sm text-muted-foreground transition-colors hover:text
+                  <button onClick={() => setMode("whatsapp")} className="text-sm text-muted-foreground transition-colors hover:text-primary">
+                    <Phone className="mr-1 inline h-3 w-3" /> Login with WhatsApp
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+    </Layout>
+  );
+}
