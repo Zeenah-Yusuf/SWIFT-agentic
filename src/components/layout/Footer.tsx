@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Zap } from "lucide-react";
+import swiftLogo from "@/assets/swift-logo.png";
 
 const footerSections = [
   {
