@@ -1,18 +1,18 @@
-import { initiatePayment } from "./getTransaction";
-// import { sendVerificationCode } from "./whatsappVerification";
+import getTransaction from "./getTransaction";
+import confirmTransaction from "./confirmTransaction";
 
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).end();
 
   const { action } = req.body;
 
-  // if (action === "login") {
-  //   return await sendVerificationCode(req, res);
-  // }
   if (action === "checkout") {
-    return await initiatePayment(req, res);
+    // Step 1: confirm the transaction
+    await confirmTransaction(req, res);
+
+    // Step 2: fetch transaction details
+    return await getTransaction(req, res);
   }
 
   res.status(400).json({ error: "Invalid action" });
 }
-
