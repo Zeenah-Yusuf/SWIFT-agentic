@@ -44,7 +44,7 @@ export function PaymentPopup({ open, onClose, total, onComplete }: PaymentPopupP
           setMessage(`Payment failed: ${response.ResponseDescription}`);
         }
       },
-      mode: "LIVE"
+      mode: "TEST"
     };
 
     window.webpayCheckout(paymentRequest);
