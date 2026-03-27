@@ -51,7 +51,7 @@ export default function Cart() {
                     <Plus className="h-3 w-3" />
                   </Button>
                 </div>
-                <span className="w-20 text-right font-display font-bold text-primary">${(item.price * item.quantity).toFixed(2)}</span>
+                <span className="w-20 text-right font-display font-bold text-primary">{formatNaira(item.price * item.quantity)}</span>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => removeItem(item.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>
