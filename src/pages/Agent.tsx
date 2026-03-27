@@ -25,7 +25,7 @@ const initialMessages: Message[] = [
 ];
 
 const quickPrompts = [
-  "I'm hosting a hackathon for 60 people, budget $400",
+  "I'm hosting a hackathon for 60 people, budget ₦200,000",
   "Why is this ranked #1?",
   "Find a cheaper setup",
   "What about delivery?",
