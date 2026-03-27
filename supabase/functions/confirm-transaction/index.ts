@@ -23,16 +23,25 @@ serve(async (req) => {
       );
     }
 
-    const merchantCode = "MX21696"; // Interswitch test merchant code
+    // Load credentials from environment variables
+    const merchantCode = Deno.env.get("INTERSWITCH_MERCHANT_CODE")!;
+    const clientId = Deno.env.get("INTERSWITCH_CLIENT_ID")!;
+    const secret = Deno.env.get("INTERSWITCH_SECRET")!;
+    const dataRef = Deno.env.get("INTERSWITCH_DATA_REF") || "";
+    const tillAlias = Deno.env.get("INTERSWITCH_TILL_ALIAS") || "";
+
     const verifyUrl = `https://qa.interswitchng.com/collections/api/v1/gettransaction.json?merchantcode=${merchantCode}&transactionreference=${reference}&amount=${amount}`;
 
     const resp = await fetch(verifyUrl, {
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Basic ${btoa(`${clientId}:${secret}`)}`,
+      },
     });
 
     const data = await resp.json();
 
-    return new Response(JSON.stringify(data), {
+    return new Response(JSON.stringify({ ...data, dataRef, tillAlias }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
