@@ -17,7 +17,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url = `https://qa.interswitchng.com/collections/api/v1/gettransaction.json?merchantcode=${merchantCode}&transactionreference=${reference}&amount=${amount}`;
+    const url = `https://interswitchng.com/collections/api/v1/gettransaction.json?merchantcode=${merchantCode}&transactionreference=${reference}&amount=${amount}`;
 
     const response = await axios.get(url, {
       headers: {
