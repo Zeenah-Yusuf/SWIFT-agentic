@@ -20,33 +20,32 @@ export default function Checkout() {
 
   if (items.length === 0 && !orderComplete) return <Navigate to="/cart" />;
 
-  const handlePaymentComplete = async (txnRef: string) => {
-    try {
-      const confirmUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/confirm-transaction?reference=${txnRef}&amount=${total * 100}`;
-      const res = await fetch(confirmUrl, {
-        headers: {
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-      });
-      const data = await res.json();
+const handlePaymentComplete = async (txnRef: string) => {
+  try {
+    // Call your Vercel API route directly
+    const confirmUrl = `/api/confirmTransaction?reference=${txnRef}&amount=${total * 100}`;
+    const res = await fetch(confirmUrl);
+    const data = await res.json();
 
-      if (data.ResponseCode === "00" && data.Amount === total * 100) {
-        clearCart();
-        setOrderComplete(true);
-        toast({ title: "Payment verified successfully!" });
-      } else {
-        // In test mode, still allow order completion
-        clearCart();
-        setOrderComplete(true);
-        toast({ title: "Order placed! (Test Mode)" });
-      }
-    } catch {
-      // In test mode, still allow order completion
+    if (data.ResponseCode === "00" && Number(data.Amount) === total * 100) {
       clearCart();
       setOrderComplete(true);
-      toast({ title: "Order placed! (Test Mode)" });
+      toast({ title: "Payment verified successfully!" });
+    } else {
+      toast({
+        title: "Payment verification failed",
+        description: data.ResponseDescription || "Unexpected response",
+        variant: "destructive",
+      });
     }
-  };
+  } catch (err) {
+    toast({
+      title: "Error verifying payment",
+      description: String(err),
+      variant: "destructive",
+    });
+  }
+};
 
   if (orderComplete) {
     return (
@@ -131,7 +130,7 @@ export default function Checkout() {
                   open={payOpen}
                   onClose={() => setPayOpen(false)}
                   total={total}
-                  onComplete={() => handlePaymentComplete(`txn_${Date.now()}`)}
+                  onComplete={() => handlePaymentComplete}
                   customerId={user?.id || "guest"}
                 />
               </div>
