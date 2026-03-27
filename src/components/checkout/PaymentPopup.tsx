@@ -1,59 +1,53 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { useState } from "react";
-import { CreditCard, Building, Smartphone, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
+
+declare global {
+  interface Window {
+    webpayCheckout: (req: any) => void;
+  }
+}
 
 interface PaymentPopupProps {
   open: boolean;
   onClose: () => void;
   total: number;
   onComplete: () => void;
+  customerId: string;
 }
 
-const mobileOptions = [
-  { name: "OPay", color: "bg-green-500" },
-  { name: "Kuda", color: "bg-purple-500" },
-  { name: "Moniepoint", color: "bg-blue-500" },
-];
-
-const bankOptions = ["Access Bank", "First Bank", "GTBank", "UBA", "Zenith Bank"];
-
-export function PaymentPopup({ open, onClose, total, onComplete }: PaymentPopupProps) {
-  const [method, setMethod] = useState<"mobile" | "bank" | "card" | null>(null);
-  const [processing, setProcessing] = useState(false);
+export function PaymentPopup({ open, onClose, total, onComplete, customerId }: PaymentPopupProps) {
   const [done, setDone] = useState(false);
   const [message, setMessage] = useState("");
 
-  const handlePay = async () => {
-    setProcessing(true);
-    try {
-      const res = await fetch("/api/interswitchPayment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          amount: total,
-          customerId: "customer123", // replace with actual logged-in user ID
-          method, // optional: send chosen method to backend
-        }),
-      });
-      const data = await res.json();
-      if (data.error) {
-        setMessage(`Payment failed: ${data.error}`);
-      } else {
-        setDone(true);
-        setMessage("Payment successful!");
-        setTimeout(() => {
-          onComplete(); // clears cart + marks order complete
-          setDone(false);
-          setMethod(null);
-        }, 1500);
-      }
-    } catch (err) {
-      setMessage("Error initiating payment");
-    } finally {
-      setProcessing(false);
-    }
+  const handlePay = () => {
+    const txnRef = `txn_${Date.now()}`;
+
+    const paymentRequest = {
+      merchant_code: "MX21696",       // test merchant code
+      pay_item_id: "4177785",         // test pay item id
+      txn_ref: txnRef,
+      site_redirect_url: "https://yourdomain.com/payment-response",
+      amount: total * 100,            // amount in kobo (₦1000 = 100000)
+      currency: 566,                  // NGN ISO code
+      onComplete: (response: any) => {
+        console.log("Payment response:", response);
+        if (response.ResponseCode === "00") {
+          setDone(true);
+          setMessage("Payment successful!");
+          setTimeout(() => {
+            onComplete();
+            setDone(false);
+          }, 1500);
+        } else {
+          setMessage(`Payment failed: ${response.ResponseDescription}`);
+        }
+      },
+      mode: "TEST"
+    };
+
+    window.webpayCheckout(paymentRequest);
   };
 
   return (
@@ -68,68 +62,14 @@ export function PaymentPopup({ open, onClose, total, onComplete }: PaymentPopupP
             <CheckCircle2 className="h-16 w-16 text-green-500" />
             <p className="mt-4 font-display text-lg font-semibold text-foreground">Payment Successful!</p>
           </div>
-        ) : !method ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Choose payment method</p>
-            <Button variant="outline" className="w-full justify-start gap-3" onClick={() => setMethod("mobile")}>
-              <Smartphone className="h-5 w-5 text-primary" /> Mobile Transfer
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-3" onClick={() => setMethod("bank")}>
-              <Building className="h-5 w-5 text-primary" /> Bank Transfer
-            </Button>
-            <Button variant="outline" className="w-full justify-start gap-3" onClick={() => setMethod("card")}>
-              <CreditCard className="h-5 w-5 text-primary" /> Card Payment
-            </Button>
-          </div>
-        ) : method === "mobile" ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Select mobile payment provider</p>
-            {mobileOptions.map((opt) => (
-              <Button
-                key={opt.name}
-                variant="outline"
-                className="w-full justify-start gap-3"
-                onClick={handlePay}
-                disabled={processing}
-              >
-                <span className={`h-3 w-3 rounded-full ${opt.color}`} />
-                {opt.name}
-              </Button>
-            ))}
-            <Button variant="ghost" size="sm" onClick={() => setMethod(null)}>← Back</Button>
-          </div>
-        ) : method === "bank" ? (
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">Select your bank</p>
-            {bankOptions.map((bank) => (
-              <Button
-                key={bank}
-                variant="outline"
-                className="w-full justify-start"
-                onClick={handlePay}
-                disabled={processing}
-              >
-                {bank}
-              </Button>
-            ))}
-            <Button variant="ghost" size="sm" onClick={() => setMethod(null)}>← Back</Button>
-          </div>
         ) : (
           <div className="space-y-4">
-            <Input placeholder="Card number" />
-            <div className="grid grid-cols-2 gap-3">
-              <Input placeholder="MM/YY" />
-              <Input placeholder="CVV" />
-            </div>
-            <Input placeholder="Cardholder name" />
-            <Button className="w-full" onClick={handlePay} disabled={processing}>
-              {processing ? "Processing..." : `Pay ₦${total.toFixed(2)}`}
+            <Button className="w-full" onClick={handlePay}>
+              Pay ₦{total.toFixed(2)} with Interswitch (Test)
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setMethod(null)}>← Back</Button>
+            {message && <p className="mt-2 text-sm text-red-500">{message}</p>}
           </div>
         )}
-
-        {message && <p className="mt-2 text-sm text-red-500">{message}</p>}
       </DialogContent>
     </Dialog>
   );
