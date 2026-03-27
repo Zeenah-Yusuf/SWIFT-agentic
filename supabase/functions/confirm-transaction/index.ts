@@ -30,7 +30,7 @@ serve(async (req) => {
     const dataRef = Deno.env.get("INTERSWITCH_DATA_REF") || "";
     const tillAlias = Deno.env.get("INTERSWITCH_TILL_ALIAS") || "";
 
-    const verifyUrl = `https://qa.interswitchng.com/collections/api/v1/gettransaction.json?merchantcode=${merchantCode}&transactionreference=${reference}&amount=${amount}`;
+    const verifyUrl = `https://interswitchng.com/collections/api/v1/gettransaction.json?merchantcode=${merchantCode}&transactionreference=${reference}&amount=${amount}`;
 
     const resp = await fetch(verifyUrl, {
       headers: {
