@@ -15,7 +15,7 @@ interface Message {
   products?: Product[];
 }
 
-const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-agent-assistant`;
 
 const initialMessages: Message[] = [
   {
